@@ -48,6 +48,19 @@ vim.g.loaded_netrw = 1
 -- next greatest remap ever : asbjornHaland
 vim.keymap.set({ "n", "v" }, "<leader>y", [["+y]])
 vim.wo.relativenumber = true
+
+vim.opt.swapfile = false
+vim.opt.backup = false
+
+vim.keymap.set("n", "<C-j>", "<cmd>cnext<CR>zz")
+vim.keymap.set("n", "<C-k>", "<cmd>cprev<CR>zz")
+
+vim.keymap.set("n", "<C-d>", "<C-d>zz")
+vim.keymap.set("n", "<C-u>", "<C-u>zz")
+
+vim.keymap.set("n", "n", "nzzzv")
+vim.keymap.set("n", "N", "Nzzzv")
+
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    https://github.com/folke/lazy.nvim
 --    `:help lazy.nvim.txt` for more info
@@ -126,18 +139,19 @@ require('lazy').setup({
   },
 
   -- Useful plugin to show you pending keybinds.
-  { 'folke/which-key.nvim',  opts = {} },
+  { 'folke/which-key.nvim',             opts = {} },
   {
     -- Adds git related signs to the gutter, as well as utilities for managing changes
     'lewis6991/gitsigns.nvim',
     opts = {
       -- See `:help gitsigns.txt`
       signs = {
-        add = { text = '+' },
-        change = { text = '~' },
-        delete = { text = '_' },
-        topdelete = { text = '‾' },
+        add          = { text = '│' },
+        change       = { text = '│' },
+        delete       = { text = '_' },
+        topdelete    = { text = '‾' },
         changedelete = { text = '~' },
+        untracked    = { text = '┆' },
       },
       on_attach = function(bufnr)
         vim.keymap.set('n', '<leader>hp', require('gitsigns').preview_hunk, { buffer = bufnr, desc = 'Preview git hunk' })
@@ -174,7 +188,15 @@ require('lazy').setup({
       vim.cmd.colorscheme 'onedark'
     end,
   },
-
+  {
+    "nvim-neotest/neotest",
+    dependencies = {
+      "nvim-lua/plenary.nvim",
+      "antoinemadec/FixCursorHold.nvim"
+    }
+  },
+  { "nvim-neotest/neotest-python" },
+  { "Hoffs/omnisharp-extended-lsp.nvim" },
   {
     -- Set lualine as statusline
     'nvim-lualine/lualine.nvim',
@@ -199,7 +221,7 @@ require('lazy').setup({
   },
 
   -- "gc" to comment visual regions/lines
-  { 'numToStr/Comment.nvim', opts = {} },
+  { 'numToStr/Comment.nvim',     opts = {} },
 
   -- Fuzzy Finder (files, lsp, etc)
   {
@@ -230,6 +252,8 @@ require('lazy').setup({
     },
     build = ':TSUpdate',
   },
+  { 'mhartington/formatter.nvim' },
+  { 'ThePrimeagen/harpoon' },
 
   -- NOTE: Next Step on Your Neovim Journey: Add/Configure additional "plugins" for kickstart
   --       These are some example plugins that I've included in the kickstart repository.
@@ -249,8 +273,85 @@ require('lazy').setup({
 -- [[ Setting options ]]
 -- See `:help vim.o`
 -- NOTE: You can change these options as you wish!
+local mark = require("harpoon.mark")
+local ui = require("harpoon.ui")
+
+vim.keymap.set("n", "<leader>h", mark.add_file)
+vim.keymap.set("n", "<C-e>", ui.toggle_quick_menu)
+
+vim.keymap.set("n", "<C-h>", function() ui.nav_file(1) end)
+-- vim.keymap.set("n", "<C-j>", function() ui.nav_file(2) end)
+-- vim.keymap.set("n", "<C-k>", function() ui.nav_file(3) end)
+-- vim.keymap.set("n", "<C-l>", function() ui.nav_file(4) end)
+
+require("neotest").setup({
+  adapters = {
+    require("neotest-python")({
+      args = { "-c", "pytest.ini", "-rP" }
+    }),
+  },
+})
+
+-- Utilities for creating configurations
+local util = require "formatter.util"
+
+-- Provides the Format, FormatWrite, FormatLock, and FormatWriteLock commands
+require("formatter").setup {
+  -- Enable or disable logging
+  logging = true,
+  -- Set the log level
+  log_level = vim.log.levels.WARN,
+  -- All formatter configurations are opt-in
+  filetype = {
+    -- Formatter configurations for filetype "lua" go here
+    -- and will be executed in order
+    python = {
+      require("formatter.filetypes.python").black,
+      function()
+        return {
+          exe = "~/.local/share/nvim/mason/bin/black",
+          args = { "-q", "--stdin-filename", util.escape_path(util.get_current_buffer_file_name()), "-" },
+          stdin = true,
+        }
+      end
+    },
+
+    yaml = {
+      require("formatter.filetypes.yaml").yamlfmt,
+    },
+
+    cs = {
+      require("formatter.filetypes.cs").csharpier,
+    },
+
+    sql = {
+      require("formatter.filetypes.sql").sqlfluff,
+    },
+
+    json = {
+      require("formatter.filetypes.json").jq,
+    },
+
+    terraform = {
+      require("formatter.filetypes.terraform").terraformfmt,
+    },
+
+    -- Use the special "*" filetype for defining formatter configurations on
+    -- any filetype
+    ["*"] = {
+      -- "formatter.filetypes.any" defines default configurations for any
+      -- filetype
+      require("formatter.filetypes.any").remove_trailing_whitespace
+    }
+  }
+}
+
+vim.api.nvim_set_keymap('n', '<leader>f', ':Format<CR>', { noremap = true, silent = true })
 
 vim.api.nvim_set_keymap('n', '<leader>po', ':CHADopen<CR>', { noremap = true, silent = true })
+
+vim.api.nvim_set_keymap('v', '<', '<gv', { noremap = true })
+vim.api.nvim_set_keymap('v', '>', '>gv', { noremap = true })
 
 -- Set highlight on search
 vim.o.hlsearch = true
@@ -290,7 +391,8 @@ vim.o.completeopt = 'menuone,noselect'
 vim.o.termguicolors = true
 
 -- [[ Basic Keymaps ]]
-
+vim.keymap.set("v", "J", ":m '>+1<CR>gv=gv")
+vim.keymap.set("v", "K", ":m '<-2<CR>gv=gv")
 -- Keymaps for better default experience
 -- See `:help vim.keymap.set()`
 vim.keymap.set({ 'n', 'v' }, '<Space>', '<Nop>', { silent = true })
@@ -395,7 +497,7 @@ vim.defer_fn(function()
   require('nvim-treesitter.configs').setup {
     -- Add languages to be installed here that you want installed for treesitter
     ensure_installed = { 'c', 'cpp', 'go', 'lua', 'python', 'rust', 'tsx', 'javascript', 'typescript', 'vimdoc', 'vim',
-      'bash' },
+      'bash', 'c_sharp' },
 
     -- Autoinstall languages that are not installed. Defaults to false (but you can change for yourself!)
     auto_install = false,
@@ -487,7 +589,7 @@ local on_attach = function(_, bufnr)
 
   -- See `:help K` for why this keymap
   nmap('K', vim.lsp.buf.hover, 'Hover Documentation')
-  nmap('<C-k>', vim.lsp.buf.signature_help, 'Signature Documentation')
+  nmap('<C-m>', vim.lsp.buf.signature_help, 'Signature Documentation')
 
   -- Lesser used LSP functionality
   nmap('gD', vim.lsp.buf.declaration, '[G]oto [D]eclaration')
@@ -497,18 +599,27 @@ local on_attach = function(_, bufnr)
     print(vim.inspect(vim.lsp.buf.list_workspace_folders()))
   end, '[W]orkspace [L]ist Folders')
 
+
+  vim.keymap.set('i', '<C-h>', function() vim.lsp.buf.signature_help() end,
+    { buffer = bufnr, expr = true, noremap = true })
   -- Create a command `:Format` local to the LSP buffer
-  vim.api.nvim_buf_create_user_command(bufnr, 'Format', function(_)
-    vim.lsp.buf.format()
-  end, { desc = 'Format current buffer with LSP' })
+  -- vim.api.nvim_buf_create_user_command(bufnr, 'Format', function(_)
+  --   vim.lsp.buf.format()
+  -- end, { desc = 'Format current buffer with LSP' })
 end
 
+
+
+
+vim.diagnostic.config({
+  virtual_text = false,
+})
 -- document existing key chains
 require('which-key').register {
   ['<leader>c'] = { name = '[C]ode', _ = 'which_key_ignore' },
   ['<leader>d'] = { name = '[D]ocument', _ = 'which_key_ignore' },
   ['<leader>g'] = { name = '[G]it', _ = 'which_key_ignore' },
-  ['<leader>h'] = { name = 'More git', _ = 'which_key_ignore' },
+  -- ['<leader>h'] = { name = 'More git', _ = 'which_key_ignore' },
   ['<leader>r'] = { name = '[R]ename', _ = 'which_key_ignore' },
   ['<leader>s'] = { name = '[S]earch', _ = 'which_key_ignore' },
   ['<leader>w'] = { name = '[W]orkspace', _ = 'which_key_ignore' },
@@ -527,14 +638,17 @@ require('mason-lspconfig').setup()
 --
 --  If you want to override the default filetypes that your language server will attach to you can
 --  define the property 'filetypes' to the map in question.
+--
 local servers = {
   -- clangd = {},
-  -- gopls = {},
-  -- pyright = {},
+  gopls = {},
+  pyright = {},
   -- rust_analyzer = {},
   -- tsserver = {},
   -- html = { filetypes = { 'html', 'twig', 'hbs' } },
-  htmx = {},
+  omnisharp = {
+  },
+  -- csharp_ls = {},
   lua_ls = {
     Lua = {
       workspace = { checkThirdParty = false },
@@ -620,4 +734,8 @@ cmp.setup {
 }
 
 -- The line beneath this is called `modeline`. See `:help modeline`
+-- vim: ts=2 sts=2 sw=2 et
+-- vim: ts=2 sts=2 sw=2 et
+-- vim: ts=2 sts=2 sw=2 et
+-- vim: ts=2 sts=2 sw=2 et
 -- vim: ts=2 sts=2 sw=2 et
