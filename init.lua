@@ -43,8 +43,8 @@ P.S. You can delete this when you're done too. It's your config now :)
 --  NOTE: Must happen before plugins are required (otherwise wrong leader will be used)
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
-vim.g.loaded_netrwPlugin = 1
-vim.g.loaded_netrw = 1
+-- vim.g.loaded_netrwPlugin = 1
+-- vim.g.loaded_netrw = 1
 -- next greatest remap ever : asbjornHaland
 vim.keymap.set({ "n", "v" }, "<leader>y", [["+y]])
 vim.wo.relativenumber = true
@@ -54,6 +54,8 @@ vim.opt.backup = false
 
 vim.keymap.set("n", "<C-j>", "<cmd>cnext<CR>zz")
 vim.keymap.set("n", "<C-k>", "<cmd>cprev<CR>zz")
+
+vim.opt.scrolloff = 8
 
 vim.keymap.set("n", "<C-d>", "<C-d>zz")
 vim.keymap.set("n", "<C-u>", "<C-u>zz")
@@ -117,10 +119,40 @@ require('lazy').setup({
     event = "InsertEnter",
     opts = {} -- this is equalent to setup({}) function
   },
+  -- {
+  --   "ms-jpq/chadtree",
+  --   branch = "chad",
+  --   build = "python3 -m chadtree deps",
+  -- },
   {
-    "ms-jpq/chadtree",
-    branch = "chad",
-    build = "python3 -m chadtree deps",
+    'stevearc/oil.nvim',
+    opts = {
+      view_options = {
+        -- Show files and directories that start with "."
+        show_hidden = true,
+        -- This function defines what is considered a "hidden" file
+        is_hidden_file = function(name, bufnr)
+          return vim.startswith(name, ".")
+        end,
+        -- This function defines what will never be shown, even when `show_hidden` is set
+        is_always_hidden = function(name, bufnr)
+          return false
+        end,
+        -- Sort file names in a more intuitive order for humans. Is less performant,
+        -- so you may want to set to false if you work with large directories.
+        natural_order = true,
+        sort = {
+          -- sort order can be "asc" or "desc"
+          -- see :help oil-columns to see which columns are sortable
+          { "type", "asc" },
+          { "name", "asc" },
+        },
+      }
+
+
+    },
+    -- Optional dependencies
+    dependencies = { "nvim-tree/nvim-web-devicons" },
   },
   {
     -- Autocompletion
@@ -179,15 +211,15 @@ require('lazy').setup({
       end,
     },
   },
-
   {
-    -- Theme inspired by Atom
-    'navarasu/onedark.nvim',
+    "rose-pine/neovim",
+    name = "rose-pine",
     priority = 1000,
     config = function()
-      vim.cmd.colorscheme 'onedark'
-    end,
+      vim.cmd.colorscheme 'rose-pine'
+    end
   },
+
   {
     "nvim-neotest/neotest",
     dependencies = {
@@ -204,7 +236,7 @@ require('lazy').setup({
     opts = {
       options = {
         icons_enabled = false,
-        theme = 'onedark',
+        theme = 'rose-pine',
         component_separators = '|',
         section_separators = '',
       },
@@ -275,6 +307,12 @@ require('lazy').setup({
 -- NOTE: You can change these options as you wish!
 local mark = require("harpoon.mark")
 local ui = require("harpoon.ui")
+require("harpoon").setup({
+  menu = {
+    width = vim.api.nvim_win_get_width(0) - 4,
+  }
+})
+
 
 vim.keymap.set("n", "<leader>h", mark.add_file)
 vim.keymap.set("n", "<C-e>", ui.toggle_quick_menu)
@@ -348,7 +386,7 @@ require("formatter").setup {
 
 vim.api.nvim_set_keymap('n', '<leader>f', ':Format<CR>', { noremap = true, silent = true })
 
-vim.api.nvim_set_keymap('n', '<leader>po', ':CHADopen<CR>', { noremap = true, silent = true })
+vim.api.nvim_set_keymap('n', '<leader>po', ':Oil<CR>', { noremap = true, silent = true })
 
 vim.api.nvim_set_keymap('v', '<', '<gv', { noremap = true })
 vim.api.nvim_set_keymap('v', '>', '>gv', { noremap = true })
@@ -483,6 +521,7 @@ end, { desc = '[/] Fuzzily search in current buffer' })
 
 vim.keymap.set('n', '<leader>gf', require('telescope.builtin').git_files, { desc = 'Search [G]it [F]iles' })
 vim.keymap.set('n', '<leader>sf', require('telescope.builtin').find_files, { desc = '[S]earch [F]iles' })
+vim.keymap.set("n", "<leader>sa", ":Telescope find_files hidden=true no_ignore=true<CR>")
 vim.keymap.set('n', '<leader>sh', require('telescope.builtin').help_tags, { desc = '[S]earch [H]elp' })
 vim.keymap.set('n', '<leader>sw', require('telescope.builtin').grep_string, { desc = '[S]earch current [W]ord' })
 vim.keymap.set('n', '<leader>sg', require('telescope.builtin').live_grep, { desc = '[S]earch by [G]rep' })
